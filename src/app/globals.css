@@ -1,26 +1,234 @@
 @import "tailwindcss";
 
+/* Apple-inspiriert: Systemtypo, neutrale Grautöne, viel Luft, dezente Tiefe */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --apple-bg: #fbfbfd;
+  --apple-bg-elevated: #ffffff;
+  --apple-bg-subtle: #f5f5f7;
+  --apple-text: #1d1d1f;
+  --apple-text-secondary: #6e6e73;
+  --apple-text-tertiary: #86868b;
+  /* Abexis Markenfarben */
+  --brand-900: #26337c;
+  --brand-500: #45b3e2;
+  --brand-900-hover: #324891;
+  --brand-500-hover: #3aa3cf;
+  --brand-gradient: linear-gradient(115deg, var(--brand-900) 0%, #3550a4 42%, var(--brand-500) 100%);
+  --brand-gradient-soft: linear-gradient(135deg, rgba(38, 51, 124, 0.14) 0%, rgba(69, 179, 226, 0.12) 100%);
+  --apple-blue: var(--brand-900);
+  --apple-blue-hover: var(--brand-900-hover);
+  --apple-border: rgba(0, 0, 0, 0.06);
+  --apple-shadow: 0 4px 24px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --apple-shadow-lg: 0 24px 80px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 0, 0, 0.04);
+  /* Legacy / Beratung (dezent in Akzenten) */
+  --paper: var(--apple-bg);
+  --ink: var(--apple-text);
+  --brand: #1d1d1f;
+  --brand2: var(--brand-500);
+  --muted: var(--apple-text-secondary);
+  --line: rgba(0, 0, 0, 0.08);
+  --shadow: var(--apple-shadow-lg);
+  --font-sf: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue",
+    Helvetica, Arial, sans-serif;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-sf);
+  --font-serif: var(--font-sf);
+  --color-paper: var(--paper);
+  --color-ink: var(--ink);
+  --color-brand: var(--brand);
+  --color-brand2: var(--brand2);
+  --color-brand-900: #26337c;
+  --color-brand-500: #45b3e2;
+  --color-muted: var(--muted);
+  --color-line: var(--line);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sf);
+  background: var(--apple-bg);
+  background-image: radial-gradient(ellipse 120% 80% at 50% -20%, rgba(38, 51, 124, 0.09), transparent 55%),
+    radial-gradient(ellipse 90% 55% at 100% 0%, rgba(69, 179, 226, 0.08), transparent 48%),
+    radial-gradient(ellipse 70% 50% at 0% 40%, rgba(38, 51, 124, 0.05), transparent 50%),
+    linear-gradient(180deg, #fbfbfd 0%, #f3f5fb 52%, #fbfbfd 100%);
+  background-attachment: fixed;
+  color: var(--apple-text);
+}
+
+::selection {
+  background: color-mix(in srgb, var(--brand-500) 35%, transparent);
+}
+
+/* Überschriften-Akzent: Wortmarken mit Markenverlauf (auf hellem Grund) */
+.text-gradient-brand {
+  background-image: var(--brand-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Helles Gradient für dunkle Hero-Flächen */
+.text-gradient-brand-hero {
+  background-image: linear-gradient(105deg, #e8ecfc 0%, #9ee5f7 45%, var(--brand-500) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Sanfter «Mesh»-Layer für Sektionen */
+.apple-section-mesh {
+  position: relative;
+  isolation: isolate;
+}
+.apple-section-mesh::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(ellipse 70% 50% at 20% 30%, rgba(255, 255, 255, 0.9), transparent 50%),
+    radial-gradient(ellipse 60% 40% at 85% 70%, rgba(69, 179, 226, 0.09), transparent 50%),
+    radial-gradient(ellipse 50% 40% at 10% 80%, rgba(38, 51, 124, 0.06), transparent 50%);
+  opacity: 0.9;
+}
+
+@keyframes apple-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(0, -6px, 0) scale(1.01);
+  }
+}
+
+@keyframes apple-shimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 100% 50%;
+  }
+}
+
+/* Partnerschaften: endloser Logo-Lauf */
+@keyframes partnership-marquee {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.partnership-marquee-wrap {
+  mask-image: linear-gradient(90deg, transparent, black 8%, black 92%, transparent);
+}
+
+.partnership-marquee-track {
+  display: flex;
+  width: max-content;
+  align-items: stretch;
+  animation: partnership-marquee 55s linear infinite;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .partnership-marquee-track {
+    animation: none;
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 2rem;
+    width: 100%;
+    max-width: 72rem;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .partnership-marquee-seg--clone {
+    display: none;
+  }
+
+  .partnership-marquee-seg {
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 2rem;
+    width: 100%;
+  }
+}
+
+.apple-animated-gradient {
+  background: linear-gradient(
+    120deg,
+    #f5f5f7 0%,
+    #ffffff 28%,
+    color-mix(in srgb, var(--brand-500) 10%, #ffffff) 52%,
+    color-mix(in srgb, var(--brand-900) 8%, #f0f2fa) 78%,
+    #f5f5f7 100%
+  );
+  background-size: 200% 200%;
+  animation: apple-shimmer 18s ease-in-out infinite alternate;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .apple-animated-gradient {
+    animation: none;
+    background: #f5f5f7;
+  }
+}
+
+.legacy-prose {
+  font-size: 1.0625rem;
+  line-height: 1.7;
+  color: var(--apple-text);
+  font-family: var(--font-sf);
+}
+.legacy-prose p {
+  margin-bottom: 1rem;
+}
+.legacy-prose ul,
+.legacy-prose ol {
+  margin: 0.75rem 0 1.25rem 1.25rem;
+  padding: 0;
+}
+.legacy-prose li {
+  margin-bottom: 0.35rem;
+}
+.legacy-prose h1,
+.legacy-prose h2,
+.legacy-prose h3,
+.legacy-prose h4,
+.legacy-prose h5 {
+  font-family: var(--font-sf);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 1.5rem 0 0.75rem;
+  color: var(--apple-text);
+}
+.legacy-prose a {
+  color: var(--apple-blue);
+  text-decoration: none;
+}
+.legacy-prose a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.legacy-prose img {
+  border-radius: 12px;
+}
+
+.policy-sep {
+  border: 0;
+  border-top: 1px solid var(--apple-border);
+  margin: 2rem 0;
+}
+
+.focus-ring:focus-visible {
+  outline: 2px solid var(--apple-blue);
+  outline-offset: 3px;
 }
