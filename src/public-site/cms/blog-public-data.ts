@@ -1,0 +1,66 @@
+import { COLLECTIONS } from "@/cms/firestore/collections";
+import { getAdminFirestore } from "@/firebase/server";
+import type { PublishedPostWithId } from "./get-published-posts";
+import { getPublishedCmsPosts } from "./get-published-posts";
+import type { PublicCategoryOption } from "./category-public";
+
+const DEFAULT_INSIGHTS_LIMIT = 96;
+
+export type ListInsightsOptions = {
+  /** Firestore category document id */
+  categoryId?: string | null;
+  /** Cap how many published rows to scan (ordered by `publishedAt` desc). */
+  fetchLimit?: number;
+};
+
+/**
+ * Latest published posts for the current deployment, optionally filtered by category (in-memory filter).
+ */
+export async function listInsightsPublishedPosts(options: ListInsightsOptions = {}): Promise<PublishedPostWithId[]> {
+  const limit = Math.min(200, Math.max(12, options.fetchLimit ?? DEFAULT_INSIGHTS_LIMIT));
+  const rows = await getPublishedCmsPosts(limit);
+  const cat = options.categoryId?.trim();
+  if (!cat) return rows;
+  return rows.filter((p) => p.categoryIds.includes(cat));
+}
+
+/** Featured posts preserve `publishedAt` order from the already-sorted list. */
+export function pickFeaturedPosts(posts: PublishedPostWithId[], max = 3): PublishedPostWithId[] {
+  return posts.filter((p) => p.featured).slice(0, max);
+}
+
+export function partitionFeaturedForGrid(
+  posts: PublishedPostWithId[],
+  featured: PublishedPostWithId[],
+): PublishedPostWithId[] {
+  if (featured.length === 0) return posts;
+  const ids = new Set(featured.map((p) => p.id));
+  return posts.filter((p) => !ids.has(p.id));
+}
+
+/** Resolve author display names for post teasers (best-effort). */
+export async function getAuthorNameMap(authorIds: string[]): Promise<Map<string, string>> {
+  const db = getAdminFirestore();
+  if (!db) return new Map();
+  const ids = [...new Set(authorIds.filter((x) => x && x !== "_"))];
+  if (ids.length === 0) return new Map();
+
+  const snaps = await Promise.all(ids.map((id) => db.collection(COLLECTIONS.authors).doc(id).get()));
+  const out = new Map<string, string>();
+  snaps.forEach((snap, i) => {
+    const name = snap.exists ? String(snap.data()?.name ?? "") : "";
+    if (name) out.set(ids[i], name);
+  });
+  return out;
+}
+
+export function buildCategoryLabelLookup(categories: PublicCategoryOption[]): Map<string, string> {
+  return new Map(categories.map((c) => [c.id, c.name]));
+}
+
+export function categoryLabelsForPost(
+  categoryIds: string[],
+  lookup: Map<string, string>,
+): string[] {
+  return categoryIds.map((id) => lookup.get(id)).filter(Boolean) as string[];
+}

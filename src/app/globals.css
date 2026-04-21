@@ -222,6 +222,30 @@ body {
   border-radius: 12px;
 }
 
+/* CMS blog article (editor preview + public render) */
+.blog-prose > *:first-child {
+  margin-top: 0;
+}
+.blog-prose img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Readable measure for long-form public articles */
+.article-detail-prose-root {
+  max-width: 42rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+.article-detail-prose-root .article-detail-prose {
+  font-size: 1.0625rem;
+}
+@media (min-width: 768px) {
+  .article-detail-prose-root .article-detail-prose {
+    font-size: 1.125rem;
+  }
+}
+
 .policy-sep {
   border: 0;
   border-top: 1px solid var(--apple-border);

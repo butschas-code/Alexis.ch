@@ -1,9 +1,11 @@
 import type { MetadataRoute } from "next";
 import { fokusthemenMeta, getAllBlogPosts, teamOrder } from "@/data/pages";
+import { getPublishedCmsPosts } from "@/public-site/cms";
 
 const base = "https://www.abexis.ch";
 
-export default function sitemap(): MetadataRoute.Sitemap {
+/** Merge static legacy slugs with live CMS URLs. TODO(deploy): revalidate or use `sitemap` route segment if slugs grow large. */
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticRoutes = [
     "/",
     "/leistungen",
@@ -37,12 +39,30 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.55,
   }));
 
-  const posts = getAllBlogPosts().map((p) => ({
+  const legacyPosts = getAllBlogPosts().map((p) => ({
     url: `${base}/blog/${p.slug}`,
     lastModified: p.publishedISO ? new Date(p.publishedISO) : new Date(),
     changeFrequency: "yearly" as const,
     priority: 0.5,
   }));
 
-  return [...staticRoutes, ...fokus, ...team, ...posts];
+  let cmsPosts: MetadataRoute.Sitemap = [];
+  try {
+    const published = await getPublishedCmsPosts(500);
+    cmsPosts = published.map((p) => ({
+      url: `${base}/blog/${encodeURIComponent(p.slug)}`,
+      lastModified: p.publishedAt ? new Date(p.publishedAt) : new Date(p.updatedAt),
+      changeFrequency: "weekly" as const,
+      priority: 0.55,
+    }));
+  } catch {
+    /* Admin SDK may be unavailable at build time (TODO: ensure CI has credentials for full sitemap). */
+  }
+
+  const byUrl = new Map<string, MetadataRoute.Sitemap[number]>();
+  for (const row of [...legacyPosts, ...cmsPosts]) {
+    byUrl.set(row.url, row);
+  }
+
+  return [...staticRoutes, ...fokus, ...team, ...byUrl.values()];
 }

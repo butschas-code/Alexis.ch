@@ -1,0 +1,131 @@
+rules_version = '2';
+
+/**
+ * Firestore — CMS (abexis)
+ *
+ * Deploy: `firebase deploy --only firestore:rules`
+ *
+ * ---------------------------------------------------------------------------
+ * Assumptions (read before changing rules)
+ * ---------------------------------------------------------------------------
+ * - Role lives at `users/{uid}.role` with values: `admin`, `editor`, `viewer`.
+ *   Public website reads for posts/categories typically use the **Admin SDK** on the server
+ *   (see `src/public-site/cms/*`) — those calls **bypass** these rules. Rules still protect
+ *   direct Firebase Web SDK access (defence in depth).
+ * - `posts.status` controls public visibility: `published` | `draft` | `archived`.
+ * - Form submissions are created **only** via `POST /api/cms/v1/form-submissions` (Admin SDK),
+ *   not from the browser — client `create` stays denied.
+ * - User-profile **writes** from clients are disabled (`viewer` cannot elevate to `admin`);
+ *   role assignment uses Firebase Console or Admin tooling (`cms:seed:dev`, scripts).
+ *
+ * ---------------------------------------------------------------------------
+ * Still enforce on the server (recommended)
+ * ---------------------------------------------------------------------------
+ * - Field-level validation / size limits on API bodies.
+ * - App Check for admin surfaces if you expose broad client queries.
+ * - Form submission upload uses Admin Storage — keep `cms/submissions/**` blocked for clients
+ *   (see storage.rules).
+ */
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function userPath() {
+      return /databases/$(database)/documents/users/$(request.auth.uid);
+    }
+
+    /** Present after the user doc exists (bootstrap in Console / seed). */
+    function userDoc() {
+      return get(userPath());
+    }
+
+    function userRole() {
+      return userDoc().exists ? userDoc().data.role : null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && userRole() == 'admin';
+    }
+
+    function isEditor() {
+      return isSignedIn() && (userRole() == 'editor' || userRole() == 'admin');
+    }
+
+    function canCmsEditContent() {
+      return isEditor();
+    }
+
+    /** Post visible to anonymous clients (Web SDK) without auth. */
+    function isPublishedPost() {
+      return resource.data.keys().hasAll(['status']) && resource.data.status == 'published';
+    }
+
+    match /posts/{postId} {
+      allow read: if isPublishedPost() || canCmsEditContent();
+
+      allow create: if canCmsEditContent()
+        && request.resource.data.keys().hasAll(['status'])
+        && request.resource.data.status in ['draft', 'published', 'archived'];
+
+      allow update: if canCmsEditContent()
+        && request.resource.data.status in ['draft', 'published', 'archived'];
+
+      allow delete: if canCmsEditContent();
+    }
+
+    /**
+     * Taxonomy — Web SDK reads are **editor+ only** (anonymous public site uses Admin SDK, not these rules).
+     * TODO(future): add `status`/`published` and `allow read` for the public subset if you move reads to the client.
+     */
+    match /categories/{categoryId} {
+      allow read: if canCmsEditContent();
+
+      allow create, update, delete: if canCmsEditContent();
+    }
+
+    /**
+     * Author bios (`email` optional) — same as categories: editors only for direct Web SDK access.
+     */
+    match /authors/{authorId} {
+      allow read: if canCmsEditContent();
+
+      allow create, update, delete: if canCmsEditContent();
+    }
+
+    /** Single global doc plus any future docs — admin only (sensitive SEO/contact). */
+    match /settings/{settingsId} {
+      allow read, write: if isAdmin();
+    }
+
+    /**
+     * PII / leads — browser must not create; server uses Admin SDK.
+     * TODO(future-roles): allow `manage_submissions`-style role in rules if you store a second role source (claims).
+     */
+    match /submissions/{submissionId} {
+      allow create: if false;
+
+      allow read, update, delete: if isAdmin();
+    }
+
+    /**
+     * Own profile: readable for signed-in user. No client writes (prevents role self-escalation).
+     * Listing all users: admin only (future user admin UI).
+     */
+    match /users/{userId} {
+      allow get: if (isSignedIn() && request.auth.uid == userId) || isAdmin();
+      allow list: if isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    /** Media registry — editors manage; optional public read blocked (library used from /admin only today). */
+    match /media/{mediaId} {
+      allow read: if isEditor();
+
+      allow create, update, delete: if canCmsEditContent();
+    }
+  }
+}

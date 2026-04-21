@@ -1,0 +1,81 @@
+rules_version = '2';
+
+/**
+ * Firebase Storage — CMS
+ *
+ * Deploy: `firebase deploy --only storage`
+ *
+ * ---------------------------------------------------------------------------
+ * Assumptions
+ * ---------------------------------------------------------------------------
+ * - Role is mirrored from Firestore `users/{uid}.role` (`admin` | `editor` | `viewer`).
+ *   First-time setup: create the Firestore user doc before role-aware Storage writes work.
+ * - Public hero/body images are often served via `downloadURL` in HTML — `read: if true` keeps
+ *   those URLs working for anonymous visitors. Do not store secrets in public buckets.
+ * - **`cms/submissions/incoming/**`** is written only by the **form upload API** (Admin SDK) with
+ *   signed read URLs — clients must not upload here (blocked).
+ *
+ * ---------------------------------------------------------------------------
+ * Server-side enforcement still recommended
+ * ---------------------------------------------------------------------------
+ * - Upload API already validates MIME/size; keep that logic (see `form-submissions/upload/route.ts`).
+ * - Consider App Check on Storage for admin uploads to reduce token theft abuse.
+ * - `cms/media` paths: rules allow editor writes; abuse is limited by auth + org processes.
+ */
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isCmsEditorOrAdmin() {
+      return isSignedIn()
+        && firestore.exists(/databases/(default)/documents/users/$(request.auth.uid))
+        && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role in ['admin', 'editor'];
+    }
+
+    /**
+     * Hero images for posts — public read (URLs embedded on site); edits require editor+.
+     */
+    match /cms/heroes/{postId}/{fileName} {
+      allow read: if true;
+      allow create, update: if isCmsEditorOrAdmin()
+        && request.resource.size < 15 * 1024 * 1024;
+      allow delete: if isCmsEditorOrAdmin();
+    }
+
+    /**
+     * Inline / body images for rich text — same pattern as heroes.
+     */
+    match /cms/posts/{postId}/body/{fileName} {
+      allow read: if true;
+      allow create, update: if isCmsEditorOrAdmin()
+        && request.resource.size < 15 * 1024 * 1024;
+      allow delete: if isCmsEditorOrAdmin();
+    }
+
+    /**
+     * Media library + structured kinds (`library`, `hero`, etc. under `cms/media`).
+     */
+    match /cms/media/{allPaths=**} {
+      allow read: if true;
+      allow create, update: if isCmsEditorOrAdmin()
+        && request.resource.size < 20 * 1024 * 1024;
+      allow delete: if isCmsEditorOrAdmin();
+    }
+
+    /**
+     * Anonymous form uploads go through **Admin SDK** only; block all client access.
+     * Signed URLs generated server-side remain valid regardless of these read rules.
+     */
+    match /cms/submissions/{allPaths=**} {
+      allow read, write: if false;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,4 @@
+# Firebase client/admin, map-post, and site-config moved to:
+# - src/firebase/
+# - src/lib/cms/map-post.ts
+# - src/public-site/cms/site-config.ts

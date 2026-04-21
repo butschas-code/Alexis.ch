@@ -1,51 +1,15 @@
 "use client";
 
-import Image from "next/image";
-import { motion, useReducedMotion } from "framer-motion";
 import type { ReactNode } from "react";
+import { PageHero } from "@/components/site/PageHero";
 import { homeHeroImage } from "@/data/site-images";
 
 type Props = { children: ReactNode };
 
 export function HomeHero({ children }: Props) {
-  const reduce = useReducedMotion();
-
   return (
-    <section className="relative isolate flex min-h-[min(100svh,900px)] w-full flex-col justify-end overflow-hidden pt-24 pb-16 md:min-h-[min(92svh,960px)] md:justify-center md:pb-28 md:pt-28">
-      {/* Full-bleed background */}
-      <div className="pointer-events-none absolute inset-0 -z-10">
-        <motion.div
-          className="absolute inset-0"
-          initial={false}
-          animate={reduce ? undefined : { scale: [1, 1.04, 1] }}
-          transition={{ duration: 22, repeat: Infinity, ease: "easeInOut" }}
-        >
-          <Image
-            src={homeHeroImage}
-            alt=""
-            fill
-            className="object-cover object-center"
-            sizes="100vw"
-            priority
-            quality={90}
-          />
-        </motion.div>
-        {/* Readability: left-heavy + vertical vignette */}
-        <div
-          className="absolute inset-0 bg-gradient-to-r from-[#26337c]/88 via-[#26337c]/50 to-[#45b3e2]/18 md:from-[#26337c]/82 md:via-[#1a1f38]/45 md:to-transparent"
-          aria-hidden
-        />
-        <div
-          className="absolute inset-0 bg-gradient-to-t from-[#0a0c18]/88 via-black/28 to-[#26337c]/40"
-          aria-hidden
-        />
-        <div
-          className="absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_72%_18%,rgba(69,179,226,0.15)_0%,rgba(0,0,0,0.4)_100%)]"
-          aria-hidden
-        />
-      </div>
-
-      <div className="relative z-10 mx-auto w-full max-w-[1068px] px-6">{children}</div>
-    </section>
+    <PageHero imageSrc={homeHeroImage} priority>
+      {children}
+    </PageHero>
   );
 }

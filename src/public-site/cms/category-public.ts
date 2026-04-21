@@ -1,0 +1,37 @@
+import { COLLECTIONS } from "@/cms/firestore/collections";
+import type { CategorySiteKey } from "@/cms/types/category-site";
+import { getAdminFirestore } from "@/firebase/server";
+import { normalizeCategorySite } from "@/lib/cms/normalize-category-site";
+import { getResolvedPublicDeploymentSite, visibleCategorySiteKeysForDeployment } from "@/public-site/site";
+
+export type PublicCategoryOption = { id: string; name: string; slug: string };
+
+/** Category `site` values visible for the current public deployment (host-aware when resolved async). */
+export async function getVisibleCategorySitesAsync(): Promise<CategorySiteKey[]> {
+  const d = await getResolvedPublicDeploymentSite();
+  return visibleCategorySiteKeysForDeployment(d);
+}
+
+/** Categories that can be used to filter published posts on this site. */
+export async function listPublicCategoriesForDeployment(): Promise<PublicCategoryOption[]> {
+  const db = getAdminFirestore();
+  if (!db) return [];
+
+  const snap = await db.collection(COLLECTIONS.categories).limit(300).get();
+  const allow = new Set(await getVisibleCategorySitesAsync());
+  const rows: PublicCategoryOption[] = [];
+
+  for (const doc of snap.docs) {
+    const data = doc.data() as { name?: string; slug?: string; site?: string; siteScope?: string };
+    const site = normalizeCategorySite(data.site ?? data.siteScope);
+    if (!allow.has(site)) continue;
+    rows.push({
+      id: doc.id,
+      name: String(data.name ?? doc.id),
+      slug: String(data.slug ?? doc.id),
+    });
+  }
+
+  rows.sort((a, b) => a.name.localeCompare(b.name, "de"));
+  return rows;
+}
