@@ -1,9 +1,6 @@
 import { COLLECTIONS } from "@/cms/firestore/collections";
-import {
-  getPublishedCmsPosts,
-  getPublishedPostBySlug,
-  type PublishedPostWithId,
-} from "@/public-site/cms/get-published-posts";
+import { getPublishedCmsPosts, getPublishedPostBySlug } from "@/public-site/cms/get-published-posts";
+import type { PublishedPostWithId } from "@/public-site/cms/published-post";
 import { getAdminFirestore } from "@/firebase/server";
 import type { PublicCategoryOption } from "./category-public";
 import { listPublicCategoriesForDeployment } from "./category-public";

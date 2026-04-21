@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import type { PublishedPostWithId } from "@/public-site/cms/get-published-posts";
+import type { PublishedPostWithId } from "@/public-site/cms/published-post";
 
 /**
  * SEO + Open Graph (+ Twitter card) for a CMS blog post.
@@ -31,9 +31,10 @@ export function buildCmsPostMetadata(post: PublishedPostWithId, path: string): M
   };
 
   if (hero) {
+    const heroAlt = (post.heroImageAlt?.trim() || title).trim();
     md.openGraph = {
       ...md.openGraph,
-      images: [{ url: hero, alt: title }],
+      images: [{ url: hero, alt: heroAlt }],
     };
     md.twitter = {
       ...md.twitter,

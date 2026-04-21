@@ -13,6 +13,8 @@ export type Post = {
   excerpt: string;
   body: string;
   heroImageUrl: string | null;
+  /** Alt text for {@link heroImageUrl} (optional). */
+  heroImageAlt: string | null;
   heroImagePath: string | null;
   authorId: string;
   categoryIds: string[];

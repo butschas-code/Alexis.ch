@@ -8,6 +8,7 @@ export {
   getPublishedCmsPosts,
   getPublishedPostBySlug,
   listPublishedPostsFromDb,
+  normalizeBlogSlugParam,
   type PublishedPostWithId,
 } from "./get-published-posts";
 export {

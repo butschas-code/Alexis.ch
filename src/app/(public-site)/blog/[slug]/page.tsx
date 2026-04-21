@@ -8,35 +8,24 @@ import { getAllBlogPosts, getBlogPostBySlug } from "@/data/pages";
 import { getBlogListCoverByIndex } from "@/data/site-images";
 import {
   buildCmsPostMetadata,
-  getPublishedCmsPosts,
   getPublishedPostBySlug,
   loadPublishedPostPageData,
   loadRelatedPublishedPosts,
+  normalizeBlogSlugParam,
 } from "@/public-site/cms";
 
 type Props = { params: Promise<{ slug: string }> };
 
-export const revalidate = 120;
+/** CMS-backed slugs must resolve on every request (no stale ISR / build-time param lock-in). */
+export const dynamic = "force-dynamic";
 
 export async function generateStaticParams() {
-  const staticPosts = getAllBlogPosts().map((p) => ({ slug: p.slug }));
-  let cms: { slug: string }[] = [];
-  try {
-    const published = await getPublishedCmsPosts(400);
-    cms = published.map((p) => ({ slug: p.slug }));
-  } catch {
-    /* Admin SDK may be unavailable at build time */
-  }
-  const seen = new Set<string>();
-  return [...staticPosts, ...cms].filter((x) => {
-    if (seen.has(x.slug)) return false;
-    seen.add(x.slug);
-    return true;
-  });
+  return getAllBlogPosts().map((p) => ({ slug: p.slug }));
 }
 
 export async function generateMetadata({ params }: Props) {
-  const { slug } = await params;
+  const { slug: raw } = await params;
+  const slug = normalizeBlogSlugParam(raw);
   const cms = await getPublishedPostBySlug(slug);
   if (cms) {
     return buildCmsPostMetadata(cms, `/blog/${encodeURIComponent(slug)}`);
@@ -51,7 +40,9 @@ export async function generateMetadata({ params }: Props) {
 }
 
 export default async function BlogPostPage({ params }: Props) {
-  const { slug } = await params;
+  const { slug: raw } = await params;
+  const slug = normalizeBlogSlugParam(raw);
+  if (!slug) notFound();
 
   const pageData = await loadPublishedPostPageData(slug);
   if (pageData) {

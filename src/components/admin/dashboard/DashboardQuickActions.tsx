@@ -28,8 +28,8 @@ const baseActions = [
   },
   {
     href: CMS_PATHS.adminMedia,
-    title: "Medien hochladen",
-    text: "Zur Medienbibliothek",
+    title: "Bilder einbinden",
+    text: "Hinweise zu URLs & Dateien",
     style: "secondary" as const,
   },
 ] as const;

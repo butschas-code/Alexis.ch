@@ -21,7 +21,7 @@ import { mapClientDoc } from "./posts-client";
 /** @deprecated Use `PostUpsertInput` from `@/cms/types/dto`. */
 export type PostSaveInput = PostUpsertInput;
 
-/** Allocate a Firestore id before first save (e.g. for Storage paths). */
+/** Allocate a Firestore document id before first save. */
 export function newPostId(): string {
   const db = getCmsFirestore();
   if (!db) throw new Error("Firebase ist nicht konfiguriert.");
@@ -55,6 +55,7 @@ export async function savePost(input: PostUpsertInput): Promise<void> {
     tags: input.tags,
     featured: input.featured,
     heroImageUrl: input.heroImageUrl,
+    heroImageAlt: input.heroImageAlt,
     heroImagePath: input.heroImagePath,
     body: input.body,
     excerpt: input.excerpt,
@@ -92,6 +93,7 @@ export function cmsPostListItemToUpsert(p: CmsPostListItem): PostUpsertInput {
     excerpt: p.excerpt,
     body: p.body,
     heroImageUrl: p.heroImageUrl,
+    heroImageAlt: p.heroImageAlt ?? null,
     heroImagePath: p.heroImagePath,
     authorId: p.authorId.trim() || "_",
     categoryIds: p.categoryIds,
@@ -130,6 +132,7 @@ export async function duplicatePost(sourceId: string): Promise<string> {
     slug: nextSlug,
     status: "draft",
     body: normalizePostBodyForPersistence(src.body),
+    heroImagePath: null,
   };
 
   const parsed = parsePostUpsert(raw);

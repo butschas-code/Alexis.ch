@@ -19,7 +19,7 @@ export const metadata = {
   description: "Perspektiven zu Strategie, Transformation und Führung — kuratiert von Abexis.",
 };
 
-export const revalidate = 120;
+export const dynamic = "force-dynamic";
 
 type PageProps = {
   searchParams: Promise<{ category?: string }>;

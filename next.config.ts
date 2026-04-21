@@ -23,6 +23,11 @@ const nextConfig: NextConfig = {
         hostname: "**.firebasestorage.app",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "cdn.prod.website-files.com",
+        pathname: "/**",
+      },
     ],
   },
 };

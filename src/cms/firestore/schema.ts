@@ -8,6 +8,7 @@ export const POST_DOCUMENT_FIELDS = {
   excerpt: "excerpt",
   body: "body",
   heroImageUrl: "heroImageUrl",
+  heroImageAlt: "heroImageAlt",
   heroImagePath: "heroImagePath",
   /** @deprecated migrate to heroImagePath */
   heroStoragePath: "heroStoragePath",

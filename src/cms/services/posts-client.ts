@@ -34,6 +34,7 @@ export function mapClientDoc(id: string, d: Record<string, unknown>): CmsPostLis
     excerpt: String(d.excerpt ?? ""),
     body: String(d.body ?? ""),
     heroImageUrl: d.heroImageUrl != null ? String(d.heroImageUrl) : null,
+    heroImageAlt: d.heroImageAlt != null ? String(d.heroImageAlt) : null,
     heroImagePath: readHeroPath(d),
     authorId: String(d.authorId ?? ""),
     categoryIds: Array.isArray(d.categoryIds) ? d.categoryIds.map(String) : [],

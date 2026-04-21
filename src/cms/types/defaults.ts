@@ -14,6 +14,7 @@ export function defaultPostUpsertDraft(id: string): PostUpsertInput {
     excerpt: "",
     body: serializePostBody("<p></p>"),
     heroImageUrl: null,
+    heroImageAlt: null,
     heroImagePath: null,
     authorId: "_",
     categoryIds: [],

@@ -23,34 +23,43 @@ function readStatus(d: Record<string, unknown>): PostStatus {
   return "draft";
 }
 
-/** Map Firestore `posts` document to `CmsPost` (ISO date strings). */
-export function mapPostDoc(id: string, snap: DocumentSnapshot): CmsPost | null {
-  const d = snap.data();
-  if (!d) return null;
-  const toIso = (v: unknown) => {
-    if (v && typeof (v as { toDate?: () => Date }).toDate === "function") {
-      return (v as { toDate: () => Date }).toDate().toISOString();
-    }
-    if (typeof v === "string") return v;
-    return null;
-  };
+function toIsoField(v: unknown): string | null {
+  if (v && typeof (v as { toDate?: () => Date }).toDate === "function") {
+    return (v as { toDate: () => Date }).toDate().toISOString();
+  }
+  if (typeof v === "string") return v;
+  return null;
+}
+
+/**
+ * Map raw Firestore document data to `CmsPost` (shared by Admin SDK and Web SDK readers).
+ */
+export function mapPostDocData(id: string, d: Record<string, unknown>): CmsPost {
   return {
     title: String(d.title ?? ""),
     slug: String(d.slug ?? id),
     excerpt: String(d.excerpt ?? ""),
     body: String(d.body ?? ""),
     heroImageUrl: d.heroImageUrl != null ? String(d.heroImageUrl) : null,
-    heroImagePath: readHeroPath(d as Record<string, unknown>),
+    heroImageAlt: d.heroImageAlt != null ? String(d.heroImageAlt) : null,
+    heroImagePath: readHeroPath(d),
     authorId: String(d.authorId ?? ""),
     categoryIds: Array.isArray(d.categoryIds) ? d.categoryIds.map(String) : [],
-    tags: readTags(d as Record<string, unknown>),
+    tags: readTags(d),
     site: d.site === "search" || d.site === "both" || d.site === "abexis" ? d.site : "abexis",
-    status: readStatus(d as Record<string, unknown>),
+    status: readStatus(d),
     seoTitle: d.seoTitle != null ? String(d.seoTitle) : null,
     seoDescription: d.seoDescription != null ? String(d.seoDescription) : null,
-    featured: readFeatured(d as Record<string, unknown>),
-    publishedAt: toIso(d.publishedAt),
-    createdAt: toIso(d.createdAt) ?? new Date().toISOString(),
-    updatedAt: toIso(d.updatedAt) ?? new Date().toISOString(),
+    featured: readFeatured(d),
+    publishedAt: toIsoField(d.publishedAt),
+    createdAt: toIsoField(d.createdAt) ?? new Date().toISOString(),
+    updatedAt: toIsoField(d.updatedAt) ?? new Date().toISOString(),
   };
+}
+
+/** Map Admin `DocumentSnapshot` to `CmsPost` (ISO date strings). */
+export function mapPostDoc(id: string, snap: DocumentSnapshot): CmsPost | null {
+  const d = snap.data();
+  if (!d) return null;
+  return mapPostDocData(id, d as Record<string, unknown>);
 }

@@ -1,13 +1,32 @@
 import { z } from "zod";
 import { idString, isoDateString, postStatusSchema, siteKeySchema, slugSegment } from "./common";
 
+/** Empty / whitespace → `null`; otherwise must be `http(s)` URL (max length). */
+const heroImageUrlSchema = z.preprocess((v) => {
+  if (v == null) return null;
+  if (typeof v !== "string") return v;
+  const t = v.trim();
+  return t === "" ? null : t;
+}, z.union([z.null(), z.string().url({ message: "Bitte eine gültige URL eingeben." }).max(2000)]));
+
+/** Empty / whitespace → `null`. */
+const heroImageAltSchema = z.preprocess((v) => {
+  if (v == null) return null;
+  if (typeof v !== "string") return v;
+  const t = v.trim();
+  return t === "" ? null : t;
+}, z.union([z.null(), z.string().max(500)]));
+
 /** Create a new post (no Firestore id yet — assign client-side id before first write). */
 export const postCreateInputSchema = z.object({
   title: z.string().trim().min(1).max(500),
   slug: slugSegment,
   excerpt: z.string().max(20_000).default(""),
   body: z.string().max(500_000).default(""),
-  heroImageUrl: z.union([z.string().url().max(2000), z.null()]).default(null),
+  heroImageUrl: heroImageUrlSchema,
+  /** Optional alt text for the hero / cover image (accessibility + SEO). */
+  heroImageAlt: heroImageAltSchema,
+  /** Legacy Storage object path; editor leaves this unset (null). */
   heroImagePath: z.union([z.string().max(1024), z.null()]).default(null),
   authorId: idString,
   categoryIds: z.array(idString).max(50).default([]),

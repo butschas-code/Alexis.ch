@@ -11,8 +11,6 @@ import {
   listCategoriesForAdmin,
   type CategoryOption,
 } from "@/cms/services/content-lookup-client";
-import { uploadHeroImage } from "@/cms/services/hero-upload-client";
-import { uploadPostBodyImage } from "@/cms/services/post-body-image-upload-client";
 import { getPostForAdmin, savePost } from "@/cms/services/post-write-client";
 import type { CmsPostListItem } from "@/cms/services/posts-client";
 import { commaTextFromTags, tagsFromCommaText } from "@/cms/types/admin-forms";
@@ -67,7 +65,8 @@ function fromPost(p: CmsPostListItem): PostUpsertInput {
     excerpt: p.excerpt,
     body: p.body,
     heroImageUrl: p.heroImageUrl,
-    heroImagePath: p.heroImagePath,
+    heroImageAlt: p.heroImageAlt ?? null,
+    heroImagePath: null,
     authorId: p.authorId.trim() || "_",
     categoryIds: p.categoryIds,
     tags: p.tags,
@@ -105,6 +104,17 @@ function escapeHtml(s: string): string {
     .replace(/'/g, "&#39;");
 }
 
+function isLikelyHttpUrl(s: string): boolean {
+  const t = s.trim();
+  if (!t) return false;
+  try {
+    const u = new URL(t);
+    return u.protocol === "http:" || u.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 export function PostForm({ mode, postId }: { mode: Mode; postId: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState(mode === "edit");
@@ -117,7 +127,7 @@ export function PostForm({ mode, postId }: { mode: Mode; postId: string }) {
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [input, setInput] = useState<PostUpsertInput>(() => emptyInput(postId));
   const [publishSchedule, setPublishSchedule] = useState("");
-  const [heroUploading, setHeroUploading] = useState(false);
+  const [heroPreviewBroken, setHeroPreviewBroken] = useState(false);
   const [autosaveEnabled, setAutosaveEnabled] = useState(false);
   const slugTouched = useRef(false);
   const successTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -170,6 +180,10 @@ export function PostForm({ mode, postId }: { mode: Mode; postId: string }) {
       cancelled = true;
     };
   }, [mode, postId]);
+
+  useEffect(() => {
+    setHeroPreviewBroken(false);
+  }, [input.heroImageUrl]);
 
   const slugPreview = useMemo(() => input.slug.trim() || "(slug)", [input.slug]);
   const bodyHtml = useMemo(() => parsePostBody(input.body).html, [input.body]);
@@ -292,21 +306,6 @@ export function PostForm({ mode, postId }: { mode: Mode; postId: string }) {
     }
   }
 
-  async function onHeroFile(file: File | null) {
-    if (!file) return;
-    setHeroUploading(true);
-    setError(null);
-    try {
-      const { url, path } = await uploadHeroImage(input.id, file);
-      setInput((s) => ({ ...s, heroImageUrl: url, heroImagePath: path }));
-      showSuccess("Bild hochgeladen.");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload fehlgeschlagen.");
-    } finally {
-      setHeroUploading(false);
-    }
-  }
-
   function toggleCategory(id: string) {
     setInput((s) => ({
       ...s,
@@ -318,7 +317,8 @@ export function PostForm({ mode, postId }: { mode: Mode; postId: string }) {
     const title = escapeHtml(input.title.trim() || "Vorschau");
     const excerpt = escapeHtml(input.excerpt.trim());
     const body = sanitizeBlogHtml(parsePostBody(input.body).html);
-    const hero = input.heroImageUrl ? escapeHtml(input.heroImageUrl) : "";
+    const hero = input.heroImageUrl ? escapeHtml(input.heroImageUrl.trim()) : "";
+    const heroAlt = escapeHtml(input.heroImageAlt?.trim() || "");
     const w = window.open("", "_blank", "noopener,noreferrer");
     if (!w) {
       setError("Popup blockiert — bitte Popups für diese Seite erlauben, um die Vorschau zu öffnen.");
@@ -333,7 +333,7 @@ export function PostForm({ mode, postId }: { mode: Mode; postId: string }) {
         img{max-width:100%;border-radius:0.75rem;margin-bottom:1.25rem}
         h1{font-size:1.5rem;font-weight:600;margin:0 0 0.75rem}
       </style></head><body><div class="wrap">
-      ${hero ? `<img src="${hero}" alt=""/>` : ""}
+      ${hero ? `<img src="${hero}" alt="${heroAlt}"/>` : ""}
       <h1>${title}</h1>
       ${excerpt ? `<p class="lead">${excerpt}</p>` : ""}
       <div class="legacy-prose max-w-none">${body}</div>
@@ -508,7 +508,6 @@ export function PostForm({ mode, postId }: { mode: Mode; postId: string }) {
                   });
                 }}
                 disabled={disabledForm}
-                uploadBodyImage={(file) => uploadPostBodyImage(input.id, file)}
               />
               {fieldErrors.body ? <p className="text-xs text-red-600">{fieldErrors.body}</p> : null}
             </div>
@@ -662,22 +661,76 @@ export function PostForm({ mode, postId }: { mode: Mode; postId: string }) {
 
           <div className={`space-y-4 ${adminPanel} p-6`}>
             <h2 className={adminSectionLabel}>Titelbild</h2>
-            {input.heroImageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element -- admin preview
-              <img src={input.heroImageUrl} alt="" className="h-40 w-full rounded-xl object-cover ring-1 ring-black/10" />
+            <p className="text-xs text-[var(--apple-text-secondary)]">
+              Geben Sie eine öffentlich erreichbare Bild-URL ein (https). Kein Upload in Firebase Storage.
+            </p>
+            <label className="block space-y-2">
+              <span className="text-[14px] font-medium text-[var(--apple-text)]">Titelbild URL</span>
+              <input
+                className={`${adminInput} ${fieldErrors.heroImageUrl ? adminInputError : ""}`}
+                type="url"
+                inputMode="url"
+                placeholder="https://…"
+                value={input.heroImageUrl ?? ""}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setInput((s) => ({ ...s, heroImageUrl: v === "" ? null : v }));
+                }}
+                disabled={disabledForm}
+                autoComplete="off"
+                aria-invalid={!!fieldErrors.heroImageUrl}
+                aria-describedby={fieldErrors.heroImageUrl ? "err-hero-url" : undefined}
+              />
+              {fieldErrors.heroImageUrl ? (
+                <p id="err-hero-url" className="text-xs text-red-600">
+                  {fieldErrors.heroImageUrl}
+                </p>
+              ) : null}
+            </label>
+            <label className="block space-y-2">
+              <span className="text-[14px] font-medium text-[var(--apple-text)]">Alternativtext</span>
+              <input
+                className={`${adminInput} ${fieldErrors.heroImageAlt ? adminInputError : ""}`}
+                type="text"
+                placeholder="Kurze Bildbeschreibung für Barrierefreiheit und SEO"
+                value={input.heroImageAlt ?? ""}
+                onChange={(e) =>
+                  setInput((s) => ({
+                    ...s,
+                    heroImageAlt: e.target.value.trim() === "" ? null : e.target.value,
+                  }))
+                }
+                disabled={disabledForm}
+                aria-invalid={!!fieldErrors.heroImageAlt}
+                aria-describedby={fieldErrors.heroImageAlt ? "err-hero-alt" : undefined}
+              />
+              {fieldErrors.heroImageAlt ? (
+                <p id="err-hero-alt" className="text-xs text-red-600">
+                  {fieldErrors.heroImageAlt}
+                </p>
+              ) : null}
+            </label>
+            {isLikelyHttpUrl(input.heroImageUrl ?? "") && !heroPreviewBroken ? (
+              // eslint-disable-next-line @next/next/no-img-element -- admin live preview
+              <img
+                src={input.heroImageUrl!.trim()}
+                alt={input.heroImageAlt?.trim() || "Vorschau Titelbild"}
+                className="h-40 w-full rounded-xl object-cover ring-1 ring-black/10"
+                onError={() => setHeroPreviewBroken(true)}
+              />
+            ) : isLikelyHttpUrl(input.heroImageUrl ?? "") && heroPreviewBroken ? (
+              <div className="flex h-40 items-center justify-center rounded-xl border border-dashed border-amber-200/80 bg-amber-50/60 px-4 text-center text-xs text-amber-950">
+                Vorschau nicht möglich (URL blockiert, nicht gefunden oder kein Bild).
+              </div>
+            ) : (input.heroImageUrl ?? "").trim() !== "" ? (
+              <div className="flex h-40 items-center justify-center rounded-xl border border-dashed border-black/15 bg-[var(--apple-bg-subtle)] px-4 text-center text-xs text-[var(--apple-text-secondary)]">
+                Bitte eine gültige http(s)-URL eingeben, um die Vorschau zu sehen.
+              </div>
             ) : (
               <div className="flex h-40 items-center justify-center rounded-xl border border-dashed border-black/15 bg-[var(--apple-bg-subtle)] text-xs text-[var(--apple-text-tertiary)]">
                 Noch kein Bild
               </div>
             )}
-            <input
-              type="file"
-              accept="image/*"
-              disabled={heroUploading || disabledForm}
-              onChange={(e) => void onHeroFile(e.target.files?.[0] ?? null)}
-              className="block w-full cursor-pointer text-[13px] text-[var(--apple-text-secondary)] file:mr-3 file:cursor-pointer file:rounded-full file:border-0 file:bg-[var(--brand-900)] file:px-4 file:py-2 file:text-[12px] file:font-medium file:text-white file:shadow-sm hover:file:bg-[var(--brand-900-hover)] disabled:opacity-50"
-            />
-            {heroUploading ? <p className="text-xs text-[var(--apple-text-secondary)]">Wird hochgeladen…</p> : null}
           </div>
         </div>
       </div>
